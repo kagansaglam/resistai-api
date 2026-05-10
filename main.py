@@ -91,26 +91,31 @@ def get_protein(uniprot_id: str):
 @app.post("/search")
 def search_literature(query: SearchQuery):
     try:
-        import chromadb
-        from sentence_transformers import SentenceTransformer
-        model = SentenceTransformer("all-MiniLM-L6-v2")
-        client = chromadb.PersistentClient(
-            path=os.path.join(os.path.dirname(__file__), "data", "chroma_db")
-        )
-        collection = client.get_collection("pubmed_articles")
-        embedding = model.encode([query.query]).tolist()
-        results = collection.query(query_embeddings=embedding, n_results=query.n_results)
+        import requests as req
+        r = req.get("https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi", params={
+            "db": "pubmed", "term": query.query + " antibiotic resistance",
+            "retmax": query.n_results, "retmode": "json", "sort": "relevance"
+        })
+        pmids = r.json()["esearchresult"]["idlist"]
+        if not pmids:
+            return {"query": query.query, "results": []}
+        s = req.get("https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi", params={
+            "db": "pubmed", "id": ",".join(pmids), "retmode": "json"
+        })
+data = s.json()
         articles = []
-        for i, doc in enumerate(results["documents"][0]):
-            meta = results["metadatas"][0][i]
+        for pmid in pmids:
+            doc = data.get("result", {}).get(pmid, {})
+            if not doc or pmid == "uids":
+                continue
             articles.append({
-                "title": doc,
-                "pmid": meta["pmid"],
-                "journal": meta["journal"],
-                "year": meta["year"],
-                "relevance_score": round(1 - results["distances"][0][i], 3),
-                "pubmed_url": f"https://pubmed.ncbi.nlm.nih.gov/{meta['pmid']}"
+                "title": doc.get("title", ""),
+                "pmid": pmid,
+                "journal": doc.get("source", ""),
+                "year": doc.get("pubdate", "")[:4],
+                "relevance_score": 1.0,
+                "pubmed_url": f"https://pubmed.ncbi.nlm.nih.gov/{pmid}"
             })
-        return {"query": query.query, "results": articles}
+return {"query": query.query, "results": articles}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
