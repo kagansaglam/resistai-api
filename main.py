@@ -102,7 +102,7 @@ def search_literature(query: SearchQuery):
         s = req.get("https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi", params={
             "db": "pubmed", "id": ",".join(pmids), "retmode": "json"
         })
-data = s.json()
+        data = s.json()
         articles = []
         for pmid in pmids:
             doc = data.get("result", {}).get(pmid, {})
@@ -116,6 +116,6 @@ data = s.json()
                 "relevance_score": 1.0,
                 "pubmed_url": f"https://pubmed.ncbi.nlm.nih.gov/{pmid}"
             })
-return {"query": query.query, "results": articles}
+        return {"query": query.query, "results": articles}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
