@@ -18,7 +18,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-ANNOTATED_PATH = os.path.expanduser("~/resistai/results/proteins_annotated.csv")
+ANNOTATED_PATH = os.path.join(os.path.dirname(__file__), "data", "proteins_annotated.csv")
 df = pd.read_csv(ANNOTATED_PATH) if os.path.exists(ANNOTATED_PATH) else pd.DataFrame()
 
 class SearchQuery(BaseModel):
@@ -95,7 +95,7 @@ def search_literature(query: SearchQuery):
         from sentence_transformers import SentenceTransformer
         model = SentenceTransformer("all-MiniLM-L6-v2")
         client = chromadb.PersistentClient(
-            path=os.path.expanduser("~/resistai/module2/data/chroma_db")
+            path=os.path.join(os.path.dirname(__file__), "data", "chroma_db")
         )
         collection = client.get_collection("pubmed_articles")
         embedding = model.encode([query.query]).tolist()
