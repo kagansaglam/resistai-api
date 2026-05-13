@@ -119,3 +119,32 @@ def search_literature(query: SearchQuery):
         return {"query": query.query, "results": articles}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+class AskQuery(BaseModel):
+    query: str
+    articles: list
+
+@app.post("/ask")
+def ask_ai(query: AskQuery):
+    try:
+        from groq import Groq
+        import os
+        from dotenv import load_dotenv
+        load_dotenv()
+        client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+        context = "\n".join([
+            f"- [PMID:{a['pmid']}] ({a['year']}) {a['title']} ({a['journal']})"
+            for a in query.articles[:10]
+        ])
+        response = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[
+                {"role": "system", "content": "You are ResistAI, an expert research assistant specialising in antibiotic resistance mechanisms and drug discovery. Base your answers on the provided PubMed literature. Cite papers using PMID. Be scientifically precise and concise."},
+                {"role": "user", "content": f"Question: {query.query}\n\nRelevant literature:\n{context}"}
+            ],
+            max_tokens=800
+        )
+        return {"answer": response.choices[0].message.content}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
