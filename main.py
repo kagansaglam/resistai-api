@@ -167,7 +167,7 @@ def send_report(data: EmailReport):
             for a in data.articles[:5]
         ])
         resend.Emails.send({
-            "from": "ResistAI <noreply@resend.dev>",
+            "from": "ResistAI <noreply@resistai.bio>",
             "to": data.to_email,
             "subject": f"ResistAI Report: {data.query[:50]}",
             "html": f"""
@@ -196,7 +196,7 @@ def send_welcome(data: WelcomeEmail):
         import resend
         resend.api_key = os.getenv("RESEND_API_KEY")
         resend.Emails.send({
-            "from": "ResistAI <noreply@resend.dev>",
+            "from": "ResistAI <noreply@resistai.bio>",
             "to": data.to_email,
             "subject": "Welcome to ResistAI",
             "html": f"""
