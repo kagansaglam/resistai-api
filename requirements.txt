@@ -7,3 +7,4 @@ sentence-transformers
 groq
 requests
 python-dotenv
+resend
