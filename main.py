@@ -200,7 +200,7 @@ def send_welcome(data: WelcomeEmail):
             "to": data.to_email,
             "subject": "Welcome to ResistAI",
             "html": f"""
-            <h2>Welcome to ResistAI, {data.user_name}! 🧬</h2>
+            <img src="https://resistai-web.vercel.app/logo.png" alt="ResistAI" style="height:48px;margin-bottom:16px;" /><h2>Welcome to ResistAI, {data.user_name}!</h2>
             <p>You now have access to our antibiotic resistance research platform.</p>
             <ul>
                 <li>Search across 2,500+ PubMed articles</li>
