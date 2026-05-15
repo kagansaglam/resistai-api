@@ -148,3 +148,69 @@ def ask_ai(query: AskQuery):
         return {"answer": response.choices[0].message.content}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+class EmailReport(BaseModel):
+    to_email: str
+    user_name: str
+    query: str
+    answer: str
+    articles: list
+
+@app.post("/send-report")
+def send_report(data: EmailReport):
+    try:
+        import resend
+        resend.api_key = os.getenv("RESEND_API_KEY")
+        articles_html = "".join([
+            f'<li><a href="{a["pubmed_url"]}">[PMID:{a["pmid"]}] ({a["year"]}) {a["title"]}</a></li>'
+            for a in data.articles[:5]
+        ])
+        resend.Emails.send({
+            "from": "ResistAI <noreply@resend.dev>",
+            "to": data.to_email,
+            "subject": f"ResistAI Report: {data.query[:50]}",
+            "html": f"""
+            <h2>ResistAI Research Report</h2>
+            <p>Hi {data.user_name},</p>
+            <p>Here is your research summary for: <strong>{data.query}</strong></p>
+            <h3>AI Analysis</h3>
+            <p>{data.answer}</p>
+            <h3>Referenced Articles</h3>
+            <ul>{articles_html}</ul>
+            <p><small>ResistAI — Antibiotic Resistance Research Platform</small></p>
+            """
+        })
+        return {"success": True, "message": "Report sent successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class WelcomeEmail(BaseModel):
+    to_email: str
+    user_name: str
+
+@app.post("/send-welcome")
+def send_welcome(data: WelcomeEmail):
+    try:
+        import resend
+        resend.api_key = os.getenv("RESEND_API_KEY")
+        resend.Emails.send({
+            "from": "ResistAI <noreply@resend.dev>",
+            "to": data.to_email,
+            "subject": "Welcome to ResistAI",
+            "html": f"""
+            <h2>Welcome to ResistAI, {data.user_name}! 🧬</h2>
+            <p>You now have access to our antibiotic resistance research platform.</p>
+            <ul>
+                <li>Search across 2,500+ PubMed articles</li>
+                <li>Analyse druggable protein pockets</li>
+                <li>Get AI-powered research summaries</li>
+            </ul>
+            <p><a href="https://resistai-web.vercel.app/dashboard">Go to Dashboard →</a></p>
+            <p><small>ResistAI — Antibiotic Resistance Research Platform</small></p>
+            """
+        })
+        return {"success": True, "message": "Welcome email sent"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
