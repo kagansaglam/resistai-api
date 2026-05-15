@@ -2,18 +2,19 @@ uniprot_id,total_pockets,high_druggability,medium_druggability,low_druggability,
 P9WGR1,14,1,2,11,0.983,1,Mycobacterium tuberculosis (strain ATCC 25618 / H37Rv),inhA,TB resistance
 P0A5Y7,14,1,2,11,0.983,1,Mycobacterium bovis (strain ATCC BAA-935 / AF2122/97),inhA,TB resistance
 P9WGR0,14,1,2,11,0.983,1,Mycobacterium tuberculosis (strain CDC 1551 / Oshkosh),inhA,TB resistance
+P0A2Y8,23,1,0,22,0.974,19,Streptococcus pneumoniae serotype 4 (strain ATCC BAA-334 / TIGR4),atpB,Other
 P42829,15,1,2,12,0.973,12,Mycolicibacterium smegmatis (strain ATCC 700084 / mc(2)155),inhA,TB resistance
 Q2TR58,15,1,1,13,0.946,3,Acinetobacter baumannii,OXA-58,Beta-lactamase
 Q02736,10,1,0,9,0.939,1,Clostridium butyricum,catB,Other resistance
 P22616,14,1,0,13,0.926,1,Haemophilus influenzae,cat-IIH,Other resistance
 P31224,28,1,1,26,0.924,28,Escherichia coli (strain K12),acrB,Efflux pump
-P9WIE4,45,2,0,43,0.908,25,Mycobacterium tuberculosis (strain CDC 1551 / Oshkosh),katG,TB resistance
-P9WIE5,45,2,0,43,0.908,25,Mycobacterium tuberculosis (strain ATCC 25618 / H37Rv),katG,TB resistance
 P46817,45,2,0,43,0.908,25,Mycobacterium bovis (strain ATCC BAA-935 / AF2122/97),katG,TB resistance
+P9WIE5,45,2,0,43,0.908,25,Mycobacterium tuberculosis (strain ATCC 25618 / H37Rv),katG,TB resistance
+P9WIE4,45,2,0,43,0.908,25,Mycobacterium tuberculosis (strain CDC 1551 / Oshkosh),katG,TB resistance
 P24181,30,1,0,29,0.905,25,Escherichia coli (strain K12),acrF,Efflux pump
 P00486,16,1,0,15,0.904,1,Staphylococcus aureus,cat,Other resistance
-P0AE07,29,1,0,28,0.899,4,Escherichia coli O157:H7,acrA,Efflux pump
 P0AE06,29,1,0,28,0.899,4,Escherichia coli (strain K12),acrA,Efflux pump
+P0AE07,29,1,0,28,0.899,4,Escherichia coli O157:H7,acrA,Efflux pump
 P0AAW9,3,1,0,2,0.889,2,Escherichia coli (strain K12),acrZ,Efflux pump
 P0C002,17,1,0,16,0.879,3,Escherichia coli,sul1,Other resistance
 Q9X482,18,1,0,17,0.875,4,Chryseobacterium indologenes,IND-1,Other
@@ -33,6 +34,7 @@ P22782,18,1,0,17,0.815,1,Campylobacter coli,Chloramphenicol,Other
 Q44245,13,1,0,12,0.811,10,Acinetobacter genomosp. 13,Aminoglycoside,Other
 P07944,31,1,1,29,0.804,2,Staphylococcus aureus,pbp,Cell wall
 Q46306,23,1,0,22,0.799,1,Clostridium perfringens,tetP,Other resistance
+P9WMQ5,31,1,1,29,0.796,1,Mycobacterium tuberculosis (strain ATCC 25618 / H37Rv),mfd,Other
 P14488,16,1,0,15,0.791,3,Bacillus cereus,Metallo-beta-la,Other
 P0A5Y5,17,1,0,16,0.787,11,Mycobacterium bovis (strain ATCC BAA-935 / AF2122/97),mabA,Other
 P9WGT3,17,1,0,16,0.787,11,Mycobacterium tuberculosis (strain ATCC 25618 / H37Rv),mabA,Other
@@ -42,13 +44,15 @@ P52002,29,1,1,27,0.755,6,Pseudomonas aeruginosa (strain ATCC 15692 / DSM 22644 /
 Q840P9,11,1,0,10,0.747,1,Pseudomonas aeruginosa,VIM-7,Beta-lactamase
 Q9L4P2,15,1,0,14,0.739,3,Acinetobacter baumannii,OXA-23,Beta-lactamase
 Q8KSA6,9,1,0,8,0.731,3,Escherichia coli,bla,Beta-lactamase
+P60185,18,1,0,17,0.728,1,Staphylococcus aureus (strain N315),mecA,Cell wall
 P60184,18,1,0,17,0.728,1,Staphylococcus aureus (strain Mu50 / ATCC 700699),mecA,Cell wall
 P60186,18,1,0,17,0.728,1,Staphylococcus aureus (strain MW2),mecA,Cell wall
-P60185,18,1,0,17,0.728,1,Staphylococcus aureus (strain N315),mecA,Cell wall
+P0AES4,24,1,1,22,0.724,3,Escherichia coli (strain K12),gyrA,Fluoroquinolone
 P59655,26,1,1,24,0.724,13,Streptococcus pneumoniae (strain ATCC BAA-255 / R6),sulA,Other resistance
 P28585,16,1,0,15,0.716,3,Escherichia coli,bla,Beta-lactamase
 Q44057,9,0,1,8,0.663,6,Acinetobacter haemolyticus,Aminoglycoside,Other
 A0A0R6L508,35,0,2,33,0.654,10,Escherichia coli,mcr1,Other
+P0AES6,32,0,1,31,0.649,1,Escherichia coli (strain K12),gyrB,Other
 P20092,10,0,1,9,0.63,1,Serratia marcescens,aacA4,Aminoglycoside
 P9WFK7,28,0,1,27,0.618,5,Mycobacterium tuberculosis (strain ATCC 25618 / H37Rv),eis,Aminoglycoside
 P9WFK6,28,0,1,27,0.618,5,Mycobacterium tuberculosis (strain CDC 1551 / Oshkosh),eis,Aminoglycoside
@@ -66,8 +70,8 @@ P05364,17,0,1,16,0.551,1,Enterobacter cloacae,ampC,Beta-lactamase
 Q15BH7,6,0,1,5,0.544,6,Morganella morganii,aacA7,Aminoglycoside
 P50858,6,0,1,5,0.544,6,Klebsiella aerogenes,aacA7,Aminoglycoside
 Q5U7L7,15,0,1,14,0.535,2,Escherichia coli,VIM-2,Beta-lactamase
-P08077,21,0,1,20,0.531,8,Streptomyces griseus,aphD,Aminoglycoside
 P9WI99,30,0,1,29,0.531,30,Mycobacterium tuberculosis (strain ATCC 25618 / H37Rv),Putative,Other
+P08077,21,0,1,20,0.531,8,Streptomyces griseus,aphD,Aminoglycoside
 O05701,17,0,1,16,0.516,12,Staphylococcus aureus,folP,Other
 P60281,32,0,1,31,0.5,32,Mycolicibacterium smegmatis (strain ATCC 700084 / mc(2)155),rpoB,TB resistance
 Q9RMT4,17,0,1,16,0.498,15,Citrobacter amalonaticus,bla,Beta-lactamase
@@ -98,13 +102,13 @@ P0AD64,11,0,0,11,0.358,4,Klebsiella pneumoniae,bla,Beta-lactamase
 P10051,10,0,0,10,0.352,1,Citrobacter koseri,aacA1,Aminoglycoside
 P0C0G4,10,0,0,10,0.346,2,Streptococcus pyogenes,folB,Other
 P0A0C2,32,0,0,32,0.341,32,Enterococcus faecalis (strain ATCC 700802 / V583),aacA-aphD,Aminoglycoside
-Q7ATH7,32,0,0,32,0.341,32,Staphylococcus warneri,aacA-aphD,Aminoglycoside
-Q5HMP3,32,0,0,32,0.341,32,Staphylococcus epidermidis (strain ATCC 35984 / DSM 28319 / BCRC 17069 / CCUG 31568 / BM 3577 / RP62A),aacA-aphD,Aminoglycoside
-P0A0C0,32,0,0,32,0.341,32,Staphylococcus aureus (strain Mu50 / ATCC 700699),aacA-aphD,Aminoglycoside
 Q7ATH9,32,0,0,32,0.341,32,Mammaliicoccus sciuri,aacA-aphD,Aminoglycoside
+Q5HMP3,32,0,0,32,0.341,32,Staphylococcus epidermidis (strain ATCC 35984 / DSM 28319 / BCRC 17069 / CCUG 31568 / BM 3577 / RP62A),aacA-aphD,Aminoglycoside
 Q52S23,32,0,0,32,0.341,32,Enterococcus faecium,aacA-aphD,Aminoglycoside
 Q4L605,32,0,0,32,0.341,32,Staphylococcus haemolyticus (strain JCSC1435),aacA-aphD,Aminoglycoside
 P0A0C1,32,0,0,32,0.341,32,Staphylococcus aureus,aacA-aphD,Aminoglycoside
+P0A0C0,32,0,0,32,0.341,32,Staphylococcus aureus (strain Mu50 / ATCC 700699),aacA-aphD,Aminoglycoside
+Q7ATH7,32,0,0,32,0.341,32,Staphylococcus warneri,aacA-aphD,Aminoglycoside
 P0C0G0,11,0,0,11,0.337,2,Streptococcus pyogenes,folP,Other
 A0R561,10,0,0,10,0.334,2,Mycolicibacterium smegmatis (strain ATCC 700084 / mc(2)155),carD,Other
 P0AC11,11,0,0,11,0.322,11,Escherichia coli,sul2,Other resistance
@@ -127,6 +131,7 @@ P29806,17,0,0,17,0.249,13,Klebsiella pneumoniae,aadB,Other
 P26826,10,0,0,10,0.24,1,Clostridium perfringens,catP,Other resistance
 P14511,21,0,0,21,0.239,2,Agrobacterium tumefaciens,Aminoglycoside,Other
 P29808,18,0,0,18,0.229,8,Pseudomonas aeruginosa,aacC3,Aminoglycoside
+P02930,30,0,0,30,0.229,29,Escherichia coli (strain K12),tolC,Other
 P25910,10,0,0,10,0.228,1,Bacteroides fragilis,ccrA,Beta-lactamase
 P00552,10,0,0,10,0.214,10,Klebsiella pneumoniae,neo,Other
 P20074,16,0,0,16,0.205,2,Streptomyces acrimycini,cat,Other resistance
