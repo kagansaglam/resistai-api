@@ -3,8 +3,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional
 import json
+import logging
 import os
 import pandas as pd
+
+log = logging.getLogger(__name__)
 
 app = FastAPI(
     title="ResistAI API",
@@ -18,8 +21,73 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-ANNOTATED_PATH = os.path.join(os.path.dirname(__file__), "data", "proteins_annotated.csv")
+ANNOTATED_PATH   = os.path.join(os.path.dirname(__file__), "data", "proteins_annotated.csv")
+CHROMA_PATH      = os.path.join(os.path.dirname(__file__), "data", "chroma_db")
+EMBEDDINGS_PATH  = os.path.expanduser("~/resistai/data/embeddings.parquet")
+PROTEIN_COLL     = "protein_embeddings"
+
 df = pd.read_csv(ANNOTATED_PATH) if os.path.exists(ANNOTATED_PATH) else pd.DataFrame()
+
+# --- ChromaDB protein-embedding index (lazy-loaded on first use) ---
+_chroma_client  = None
+_protein_collection = None
+
+def _get_protein_collection():
+    global _chroma_client, _protein_collection
+    if _protein_collection is not None:
+        return _protein_collection
+
+    import chromadb
+    _chroma_client = chromadb.PersistentClient(path=CHROMA_PATH)
+
+    if not os.path.exists(EMBEDDINGS_PATH):
+        return None  # embeddings not generated yet
+
+    emb_df = pd.read_parquet(EMBEDDINGS_PATH)
+    feat_cols = [c for c in emb_df.columns if c.startswith("f")]
+
+    try:
+        existing = _chroma_client.get_collection(PROTEIN_COLL)
+        if existing.count() == len(emb_df):
+            _protein_collection = existing
+            log.info(f"Loaded existing '{PROTEIN_COLL}' collection ({existing.count()} proteins)")
+            return _protein_collection
+        # Stale — delete and rebuild
+        _chroma_client.delete_collection(PROTEIN_COLL)
+        log.info("Rebuilding protein_embeddings collection …")
+    except Exception:
+        log.info("Creating protein_embeddings collection …")
+
+    collection = _chroma_client.create_collection(
+        PROTEIN_COLL,
+        metadata={"hnsw:space": "cosine"},
+    )
+
+    # Index in batches of 500
+    BATCH = 500
+    for start in range(0, len(emb_df), BATCH):
+        chunk = emb_df.iloc[start : start + BATCH]
+        ids        = chunk["uniprot_id"].tolist()
+        embeddings = chunk[feat_cols].values.tolist()
+        metas      = []
+        for uid in ids:
+            row = df[df["uniprot_id"] == uid]
+            if not row.empty:
+                r = row.iloc[0]
+                metas.append({
+                    "gene":      str(r.get("gene", "")),
+                    "organism":  str(r.get("organism", "")),
+                    "family":    str(r.get("family", "")),
+                    "best_score": float(r.get("best_score", 0)),
+                })
+            else:
+                metas.append({})
+        collection.add(ids=ids, embeddings=embeddings, metadatas=metas)
+        log.info(f"  indexed {min(start + BATCH, len(emb_df))}/{len(emb_df)}")
+
+    _protein_collection = collection
+    log.info(f"protein_embeddings indexed: {collection.count()} proteins")
+    return _protein_collection
 
 class SearchQuery(BaseModel):
     query: str
@@ -48,7 +116,7 @@ def stats():
         "families": df["family"].value_counts().to_dict()
     }
 @app.get("/proteins")
-def list_proteins(family: Optional[str] = None, tier: Optional[str] = None, limit: int = 20):
+def list_proteins(family: Optional[str] = None, tier: Optional[str] = None, limit: int = 50, offset: int = 0):
     result = df.copy()
     if family:
         result = result[result["family"].str.lower() == family.lower()]
@@ -58,7 +126,7 @@ def list_proteins(family: Optional[str] = None, tier: Optional[str] = None, limi
         result = result[(result["best_score"] >= 0.4) & (result["best_score"] < 0.7)]
     elif tier == "low":
         result = result[result["best_score"] < 0.4]
-    result = result.sort_values("best_score", ascending=False).head(limit)
+    result = result.sort_values("best_score", ascending=False).iloc[offset:offset+limit]
     return result[["uniprot_id","gene","organism","family","best_score","total_pockets"]].to_dict(orient="records")
 
 @app.get("/proteins/{uniprot_id}")
@@ -184,6 +252,71 @@ def send_report(data: EmailReport):
         return {"success": True, "message": "Report sent successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/similar-proteins/{uniprot_id}")
+def similar_proteins(uniprot_id: str, n: int = 10):
+    """Return the n most similar proteins by ESM-2 embedding cosine similarity."""
+    uid = uniprot_id.upper()
+
+    collection = _get_protein_collection()
+    if collection is None:
+        raise HTTPException(
+            status_code=503,
+            detail="Protein embeddings not available yet. Run scripts/esm_embeddings.py first.",
+        )
+
+    # Fetch the query protein's embedding from the collection
+    try:
+        result = collection.get(ids=[uid], include=["embeddings"])
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    if not result["embeddings"]:
+        raise HTTPException(status_code=404, detail=f"No embedding found for {uid}")
+
+    query_emb = result["embeddings"][0]
+
+    # Query for n+1 to exclude the protein itself
+    hits = collection.query(
+        query_embeddings=[query_emb],
+        n_results=min(n + 1, collection.count()),
+        include=["metadatas", "distances"],
+    )
+
+    results = []
+    for hit_id, meta, dist in zip(
+        hits["ids"][0],
+        hits["metadatas"][0],
+        hits["distances"][0],
+    ):
+        if hit_id == uid:
+            continue
+        # ChromaDB cosine distance → similarity
+        similarity = round(1.0 - float(dist), 4)
+        score = meta.get("best_score", None)
+        tier_label = (
+            "high" if score is not None and score >= 0.7
+            else "medium" if score is not None and score >= 0.4
+            else "low"
+        )
+        results.append({
+            "uniprot_id": hit_id,
+            "similarity": similarity,
+            "gene":       meta.get("gene", ""),
+            "organism":   meta.get("organism", ""),
+            "family":     meta.get("family", ""),
+            "best_score": score,
+            "druggability_tier": tier_label,
+        })
+        if len(results) >= n:
+            break
+
+    return {
+        "query_protein": uid,
+        "n_results":     len(results),
+        "results":       results,
+    }
 
 
 class WelcomeEmail(BaseModel):
