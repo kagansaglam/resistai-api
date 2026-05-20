@@ -272,7 +272,7 @@ def similar_proteins(uniprot_id: str, n: int = 10):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-    if not result["embeddings"]:
+    if result["embeddings"] is None or len(result["embeddings"]) == 0:
         raise HTTPException(status_code=404, detail=f"No embedding found for {uid}")
 
     query_emb = result["embeddings"][0]
