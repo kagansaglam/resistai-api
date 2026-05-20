@@ -347,3 +347,53 @@ def send_welcome(data: WelcomeEmail):
         return {"success": True, "message": "Welcome email sent"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/similar-proteins/{uniprot_id}")
+def similar_proteins(uniprot_id: str, n: int = 10):
+    try:
+        import chromadb
+        import pandas as pd
+        import os
+
+        chroma_path = os.path.join(os.path.dirname(__file__), "data", "chroma_esm")
+        parquet_path = os.path.join(os.path.dirname(__file__), "data", "embeddings.parquet")
+
+        client = chromadb.PersistentClient(path=chroma_path)
+        collection = client.get_collection("esm_embeddings")
+
+        # Get query embedding
+        df = pd.read_parquet(parquet_path)
+        row = df[df['uniprot_id'] == uniprot_id.upper()]
+        if row.empty:
+            raise HTTPException(status_code=404, detail=f"No embedding found for {uniprot_id}")
+
+        feat_cols = [c for c in df.columns if c != 'uniprot_id']
+        query_vec = row[feat_cols].values[0].tolist()
+
+        results = collection.query(
+            query_embeddings=[query_vec],
+            n_results=n + 1
+        )
+
+        similar = []
+        for i, uid in enumerate(results['ids'][0]):
+            if uid == uniprot_id.upper():
+                continue
+            m = results['metadatas'][0][i]
+            dist = results['distances'][0][i]
+            similar.append({
+                "uniprot_id": uid,
+                "gene": m.get("gene", ""),
+                "organism": m.get("organism", ""),
+                "family": m.get("family", ""),
+                "best_score": m.get("best_score", 0),
+                "similarity": round(1 - dist, 4)
+            })
+
+        return {"query": uniprot_id.upper(), "similar_proteins": similar[:n]}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
