@@ -22,8 +22,8 @@ app.add_middleware(
 )
 
 ANNOTATED_PATH   = os.path.join(os.path.dirname(__file__), "data", "proteins_annotated.csv")
-CHROMA_PATH      = os.path.join(os.path.dirname(__file__), "data", "chroma_db")
-EMBEDDINGS_PATH  = os.path.expanduser("~/resistai/data/embeddings.parquet")
+CHROMA_PATH      = os.path.join(os.path.dirname(__file__), "data", "chroma_esm")
+EMBEDDINGS_PATH  = os.path.join(os.path.dirname(__file__), "data", "embeddings.parquet")
 PROTEIN_COLL     = "protein_embeddings"
 
 df = pd.read_csv(ANNOTATED_PATH) if os.path.exists(ANNOTATED_PATH) else pd.DataFrame()
