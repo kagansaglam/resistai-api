@@ -438,60 +438,16 @@ def analyse_protein(query: SearchQuery):
     if af_r.status_code != 200:
         raise HTTPException(status_code=422, detail=f"Failed to download AlphaFold structure for {uid}.")
 
-    # 4. Run fpocket in temp dir
-    with tempfile.TemporaryDirectory() as tmpdir:
-        pdb_path = os.path.join(tmpdir, f"{uid}.pdb")
-        with open(pdb_path, "w") as f:
-            f.write(af_r.text)
-
-        result = subprocess.run(
-            ["/snap/bin/fpocket", "-f", pdb_path],
-            capture_output=True, text=True, cwd=tmpdir
-        )
-        if result.returncode != 0:
-            raise HTTPException(status_code=500, detail="fpocket failed.")
-
-        # Parse fpocket output
-        out_dir = os.path.join(tmpdir, f"{uid}_out")
-        info_file = os.path.join(out_dir, f"{uid}_info.txt")
-        pockets = []
-        if os.path.exists(info_file):
-            current = {}
-            with open(info_file) as f:
-                for line in f:
-                    line = line.strip()
-                    if line.startswith("Pocket"):
-                        if current:
-                            pockets.append(current)
-                        current = {"pocket_id": line.split()[1]}
-                    elif ":" in line:
-                        k, v = line.split(":", 1)
-                        current[k.strip()] = v.strip()
-                if current:
-                    pockets.append(current)
-
-        enriched = []
-        for p in pockets:
-            try:
-                score = float(p.get("Druggability Score", 0))
-            except:
-                score = 0.0
-            tier = "high" if score >= 0.7 else "medium" if score >= 0.4 else "low"
-            enriched.append({"pocket_id": p.get("pocket_id"), "druggability_score": score, "druggability_tier": tier})
-
-        enriched.sort(key=lambda x: x["druggability_score"], reverse=True)
-        best = enriched[0] if enriched else None
-        high = [p for p in enriched if p["druggability_tier"] == "high"]
-
     return {
         "uniprot_id": uid,
         "source": "on_demand",
-        "druggability": {
-            "best_score": best["druggability_score"] if best else 0.0,
-            "tier": best["druggability_tier"] if best else "low",
-            "total_pockets": len(enriched),
-            "high_pockets": len(high),
-        },
-        "top_pockets": enriched[:5],
-        "message": f"On-demand analysis complete. {len(enriched)} pockets detected."
+        "alphafold_structure": pdb_url,
+        "sequence_length": len([l for l in fasta.split("\n") if not l.startswith(">")][0]) if fasta else 0,
+        "druggability": None,
+        "message": "AlphaFold structure found. fpocket analysis requires local installation — run the ResistAI pipeline locally for full druggability scoring.",
+        "links": {
+            "alphafold": f"https://alphafold.ebi.ac.uk/entry/{uid}",
+            "uniprot": f"https://www.uniprot.org/uniprot/{uid}",
+            "literature": f"https://resistai.bio/dashboard/search?q={uid}"
+        }
     }
