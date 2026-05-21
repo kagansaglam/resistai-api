@@ -397,3 +397,96 @@ def similar_proteins(uniprot_id: str, n: int = 10):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/analyse")
+def analyse_protein(query: SearchQuery):
+    """On-demand analysis for any UniProt ID."""
+    import subprocess, tempfile, requests as req, numpy as np
+    uid = query.query.strip().upper()
+
+    # 1. Check if already in database
+    row = df[df["uniprot_id"] == uid]
+    if not row.empty:
+        r = row.iloc[0]
+        tier = "high" if r["best_score"] >= 0.7 else "medium" if r["best_score"] >= 0.4 else "low"
+        return {
+            "uniprot_id": uid,
+            "source": "database",
+            "druggability": {
+                "best_score": float(r["best_score"]),
+                "tier": tier,
+                "total_pockets": int(r["total_pockets"]),
+                "high_pockets": int(r["high_druggability"]),
+            },
+            "message": "Found in pre-computed database."
+        }
+
+    # 2. Fetch sequence from UniProt
+    fasta_r = req.get(f"https://rest.uniprot.org/uniprotkb/{uid}.fasta", timeout=30)
+    if fasta_r.status_code != 200:
+        raise HTTPException(status_code=404, detail=f"UniProt ID {uid} not found.")
+    fasta = fasta_r.text
+
+    # 3. Try AlphaFold DB
+    af_r = req.get(f"https://alphafold.ebi.ac.uk/files/AF-{uid}-F1-model_v4.pdb", timeout=60)
+    if af_r.status_code != 200:
+        raise HTTPException(status_code=422, detail=f"No AlphaFold structure available for {uid}. ESMFold not available on this server.")
+
+    # 4. Run fpocket in temp dir
+    with tempfile.TemporaryDirectory() as tmpdir:
+        pdb_path = os.path.join(tmpdir, f"{uid}.pdb")
+        with open(pdb_path, "w") as f:
+            f.write(af_r.text)
+
+        result = subprocess.run(
+            ["/snap/bin/fpocket", "-f", pdb_path],
+            capture_output=True, text=True, cwd=tmpdir
+        )
+        if result.returncode != 0:
+            raise HTTPException(status_code=500, detail="fpocket failed.")
+
+        # Parse fpocket output
+        out_dir = os.path.join(tmpdir, f"{uid}_out")
+        info_file = os.path.join(out_dir, f"{uid}_info.txt")
+        pockets = []
+        if os.path.exists(info_file):
+            current = {}
+            with open(info_file) as f:
+                for line in f:
+                    line = line.strip()
+                    if line.startswith("Pocket"):
+                        if current:
+                            pockets.append(current)
+                        current = {"pocket_id": line.split()[1]}
+                    elif ":" in line:
+                        k, v = line.split(":", 1)
+                        current[k.strip()] = v.strip()
+                if current:
+                    pockets.append(current)
+
+        enriched = []
+        for p in pockets:
+            try:
+                score = float(p.get("Druggability Score", 0))
+            except:
+                score = 0.0
+            tier = "high" if score >= 0.7 else "medium" if score >= 0.4 else "low"
+            enriched.append({"pocket_id": p.get("pocket_id"), "druggability_score": score, "druggability_tier": tier})
+
+        enriched.sort(key=lambda x: x["druggability_score"], reverse=True)
+        best = enriched[0] if enriched else None
+        high = [p for p in enriched if p["druggability_tier"] == "high"]
+
+    return {
+        "uniprot_id": uid,
+        "source": "on_demand",
+        "druggability": {
+            "best_score": best["druggability_score"] if best else 0.0,
+            "tier": best["druggability_tier"] if best else "low",
+            "total_pockets": len(enriched),
+            "high_pockets": len(high),
+        },
+        "top_pockets": enriched[:5],
+        "message": f"On-demand analysis complete. {len(enriched)} pockets detected."
+    }
