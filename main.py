@@ -429,9 +429,14 @@ def analyse_protein(query: SearchQuery):
     fasta = fasta_r.text
 
     # 3. Try AlphaFold DB
-    af_r = req.get(f"https://alphafold.ebi.ac.uk/files/AF-{uid}-F1-model_v4.pdb", timeout=60)
+    # Try AlphaFold API to get pdbUrl
+    af_api = req.get(f"https://alphafold.ebi.ac.uk/api/prediction/{uid}", timeout=30)
+    if af_api.status_code != 200 or not af_api.json():
+        raise HTTPException(status_code=422, detail=f"No AlphaFold structure available for {uid}.")
+    pdb_url = af_api.json()[0]["pdbUrl"]
+    af_r = req.get(pdb_url, timeout=60)
     if af_r.status_code != 200:
-        raise HTTPException(status_code=422, detail=f"No AlphaFold structure available for {uid}. ESMFold not available on this server.")
+        raise HTTPException(status_code=422, detail=f"Failed to download AlphaFold structure for {uid}.")
 
     # 4. Run fpocket in temp dir
     with tempfile.TemporaryDirectory() as tmpdir:
