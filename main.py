@@ -451,3 +451,58 @@ def analyse_protein(query: SearchQuery):
             "literature": f"https://resistai.bio/dashboard/search?q={uid}"
         }
     }
+
+
+class PredictQuery(BaseModel):
+    uniprot_id: str
+
+@app.post("/predict-druggability")
+def predict_druggability(query: PredictQuery):
+    """Predict druggability tier using ESM-2 + XGBoost classifier."""
+    try:
+        import pickle
+        import numpy as np
+        import pandas as pd
+
+        uid = query.uniprot_id.strip().upper()
+
+        # Load model
+        model_path = os.path.join(os.path.dirname(__file__), "models", "druggability_classifier.pkl")
+        if not os.path.exists(model_path):
+            raise HTTPException(status_code=503, detail="Model not available.")
+
+        with open(model_path, "rb") as f:
+            payload = pickle.load(f)
+
+        clf = payload["model"]
+        le = payload["label_encoder"]
+        feature_cols = payload["feature_cols"]
+
+        # Load embeddings
+        emb_path = os.path.join(os.path.dirname(__file__), "data", "embeddings.parquet")
+        emb_df = pd.read_parquet(emb_path)
+        row = emb_df[emb_df["uniprot_id"] == uid]
+
+        if row.empty:
+            raise HTTPException(status_code=404, detail=f"No embedding found for {uid}. Run ESM-2 pipeline first.")
+
+        X = row[feature_cols].values.astype("float32")
+        y_pred = clf.predict(X)[0]
+        y_prob = clf.predict_proba(X)[0]
+
+        tier = le.inverse_transform([y_pred])[0]
+        confidence = float(y_prob.max())
+        probs = {le.classes_[i]: float(y_prob[i]) for i in range(len(le.classes_))}
+
+        return {
+            "uniprot_id": uid,
+            "predicted_tier": tier,
+            "confidence": round(confidence, 4),
+            "probabilities": probs,
+            "model": "XGBoost + ESM-2 embeddings",
+            "note": "ML prediction — not a substitute for experimental validation."
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

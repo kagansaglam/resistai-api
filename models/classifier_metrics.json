@@ -1,0 +1,15 @@
+{
+  "model": "XGBClassifier",
+  "n_train": 1946,
+  "n_test": 487,
+  "cv_accuracy_mean": 0.6110012523894272,
+  "cv_accuracy_std": 0.021275186830726576,
+  "test_accuracy": 0.6468172484599589,
+  "test_f1_weighted": 0.6410490931213814,
+  "test_roc_auc_ovr_weighted": 0.7925668658132553,
+  "classes": [
+    "high",
+    "low",
+    "medium"
+  ]
+}
