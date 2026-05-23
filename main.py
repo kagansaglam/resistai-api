@@ -230,24 +230,62 @@ def send_report(data: EmailReport):
     try:
         import resend
         resend.api_key = os.getenv("RESEND_API_KEY")
-        articles_html = "".join([
-            f'<li><a href="{a["pubmed_url"]}">[PMID:{a["pmid"]}] ({a["year"]}) {a["title"]}</a></li>'
-            for a in data.articles[:5]
+
+        articles_rows = "".join([
+            f'<tr style="border-bottom:1px solid #e5e7eb"><td style="padding:10px 0">' +
+            f'<a href="{a["pubmed_url"]}" style="color:#059669;font-size:13px;font-weight:500">[PMID:{a["pmid"]}]</a> ' +
+            f'<span style="font-size:12px;color:#6b7280">({a["year"]})</span><br>' +
+            f'<span style="font-size:13px;color:#374151">{a["title"]}</span><br>' +
+            f'<span style="font-size:11px;color:#9ca3af">{a["journal"]}</span></td></tr>'
+            for a in data.articles[:10]
         ])
+
+        articles_section = f"""
+            <div style="margin:20px 0">
+              <h2 style="font-size:14px;color:#111;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:12px">Referenced Literature ({len(data.articles)} articles)</h2>
+              <table style="width:100%;border-collapse:collapse">{articles_rows}</table>
+            </div>
+        """ if data.articles else ""
+
+        html = f"""<!DOCTYPE html>
+<html>
+<body style="font-family:system-ui,sans-serif;max-width:600px;margin:0 auto;padding:24px;color:#1a1a1a;background:#fff">
+  <div style="border-bottom:2px solid #059669;padding-bottom:16px;margin-bottom:24px">
+    <h1 style="margin:0;font-size:20px;color:#059669">ResistAI Research Report</h1>
+    <p style="margin:4px 0 0;color:#6b7280;font-size:13px">Antibiotic Resistance Druggability Platform</p>
+  </div>
+  <p style="color:#374151">Hi <strong>{data.user_name}</strong>,</p>
+  <p style="color:#374151">Research report for: <strong>{data.query}</strong></p>
+  <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:16px;margin:20px 0">
+    <h2 style="margin:0 0 12px;font-size:14px;color:#065f46;text-transform:uppercase">Analysis Summary</h2>
+    <p style="margin:0;font-size:14px;color:#065f46;line-height:1.6">{data.answer}</p>
+  </div>
+  {articles_section}
+  <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:16px;margin:20px 0">
+    <h2 style="margin:0 0 8px;font-size:12px;color:#6b7280;text-transform:uppercase">Druggability Scale Reference</h2>
+    <table style="width:100%;border-collapse:collapse;margin-top:8px">
+      <tr>
+        <td style="text-align:center;background:#ecfdf5;border-radius:6px;padding:8px;width:33%"><div style="font-size:16px;font-weight:700;color:#059669">High</div><div style="font-size:11px;color:#6b7280">score &#8805; 0.7</div></td>
+        <td style="width:8px"></td>
+        <td style="text-align:center;background:#fffbeb;border-radius:6px;padding:8px;width:33%"><div style="font-size:16px;font-weight:700;color:#d97706">Medium</div><div style="font-size:11px;color:#6b7280">0.4 – 0.7</div></td>
+        <td style="width:8px"></td>
+        <td style="text-align:center;background:#fef2f2;border-radius:6px;padding:8px;width:33%"><div style="font-size:16px;font-weight:700;color:#dc2626">Low</div><div style="font-size:11px;color:#6b7280">score &lt; 0.4</div></td>
+      </tr>
+    </table>
+    <p style="font-size:11px;color:#9ca3af;margin:8px 0 0">Scores computed by fpocket on AlphaFold-predicted structures. ML predictions via XGBoost + ESM-2 embeddings. Experimental validation required.</p>
+  </div>
+  <div style="border-top:1px solid #e5e7eb;padding-top:16px;margin-top:24px">
+    <a href="https://resistai.bio/dashboard" style="display:inline-block;background:#059669;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;font-size:13px;font-weight:500">Open Dashboard</a>
+    <p style="font-size:11px;color:#9ca3af;margin:12px 0 0">ResistAI &middot; resistai.bio &middot; Kagan Saglam &middot; MIT License</p>
+  </div>
+</body>
+</html>"""
+
         resend.Emails.send({
             "from": "ResistAI <noreply@resistai.bio>",
             "to": data.to_email,
             "subject": f"ResistAI Report: {data.query[:50]}",
-            "html": f"""
-            <h2>ResistAI Research Report</h2>
-            <p>Hi {data.user_name},</p>
-            <p>Here is your research summary for: <strong>{data.query}</strong></p>
-            <h3>AI Analysis</h3>
-            <p>{data.answer}</p>
-            <h3>Referenced Articles</h3>
-            <ul>{articles_html}</ul>
-            <p><small>ResistAI — Antibiotic Resistance Research Platform</small></p>
-            """
+            "html": html
         })
         return {"success": True, "message": "Report sent successfully"}
     except Exception as e:
