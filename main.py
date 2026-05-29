@@ -444,7 +444,7 @@ def similar_proteins(uniprot_id: str, n: int = 10):
 @app.post("/analyse")
 def analyse_protein(query: SearchQuery):
     """On-demand analysis for any UniProt ID."""
-    import subprocess, tempfile, requests as req, numpy as np
+    import subprocess, tempfile, shutil, requests as req, numpy as np
     uid = query.query.strip().upper()
 
     # 1. Check if already in database
@@ -480,19 +480,105 @@ def analyse_protein(query: SearchQuery):
     if af_r.status_code != 200:
         raise HTTPException(status_code=422, detail=f"Failed to download AlphaFold structure for {uid}.")
 
-    return {
-        "uniprot_id": uid,
-        "source": "on_demand",
-        "alphafold_structure": pdb_url,
-        "sequence_length": len([l for l in fasta.split("\n") if not l.startswith(">")][0]) if fasta else 0,
-        "druggability": None,
-        "message": "AlphaFold structure found. fpocket analysis requires local installation — run the ResistAI pipeline locally for full druggability scoring.",
-        "links": {
-            "alphafold": f"https://alphafold.ebi.ac.uk/entry/{uid}",
-            "uniprot": f"https://www.uniprot.org/uniprot/{uid}",
-            "literature": f"https://resistai.bio/dashboard/search?q={uid}"
+    seq_lines = [l for l in fasta.split("\n") if l and not l.startswith(">")]
+    seq_len = sum(len(l.strip()) for l in seq_lines)
+    if seq_len > 1500:
+        return {
+            "uniprot_id": uid,
+            "source": "on_demand",
+            "alphafold_structure": pdb_url,
+            "sequence_length": seq_len,
+            "druggability": None,
+            "message": f"Protein too large ({seq_len} residues) for on-demand analysis. Structures under 1500 residues are supported.",
+            "links": {
+                "alphafold": f"https://alphafold.ebi.ac.uk/entry/{uid}",
+                "uniprot": f"https://www.uniprot.org/uniprot/{uid}",
+            }
         }
-    }
+
+    workdir = tempfile.mkdtemp(prefix="fpocket_", dir=os.path.dirname(os.path.abspath(__file__)))
+    pdb_path = os.path.join(workdir, f"{uid}.pdb")
+    with open(pdb_path, "w") as fh:
+        fh.write(af_r.text)
+
+    try:
+        proc = subprocess.run(
+            ["fpocket", "-f", pdb_path],
+            capture_output=True, text=True, timeout=120
+        )
+        if proc.returncode != 0:
+            raise HTTPException(status_code=500, detail="fpocket failed to run on this structure.")
+
+        out_dir = os.path.join(workdir, f"{uid}_out")
+        info_file = os.path.join(out_dir, f"{uid}_info.txt")
+        if not os.path.exists(info_file):
+            raise HTTPException(status_code=500, detail="fpocket produced no output for this structure.")
+
+        pockets = []
+        current = {}
+        with open(info_file) as fh:
+            for line in fh:
+                line = line.strip()
+                if line.startswith("Pocket"):
+                    if current:
+                        pockets.append(current)
+                    current = {"pocket_id": line.split()[1]}
+                elif ":" in line:
+                    k, v = line.split(":", 1)
+                    current[k.strip()] = v.strip()
+        if current:
+            pockets.append(current)
+
+        def _pf(val):
+            try:
+                return float(val)
+            except Exception:
+                return None
+
+        enriched = []
+        for p in pockets:
+            score = _pf(p.get("Druggability Score"))
+            volume = _pf(p.get("Volume"))
+            if score is not None:
+                ptier = "high" if score >= 0.7 else "medium" if score >= 0.4 else "low"
+            else:
+                ptier = "unknown"
+            enriched.append({
+                "pocket_id": p.get("pocket_id"),
+                "druggability_score": score,
+                "druggability_tier": ptier,
+                "volume_A3": volume,
+            })
+        enriched.sort(key=lambda x: x["druggability_score"] if x["druggability_score"] else -1, reverse=True)
+
+        high = [p for p in enriched if p["druggability_tier"] == "high"]
+        medium = [p for p in enriched if p["druggability_tier"] == "medium"]
+        best = enriched[0]["druggability_score"] if enriched and enriched[0]["druggability_score"] is not None else 0.0
+        tier = "high" if best >= 0.7 else "medium" if best >= 0.4 else "low"
+
+        return {
+            "uniprot_id": uid,
+            "source": "on_demand",
+            "alphafold_structure": pdb_url,
+            "sequence_length": seq_len,
+            "druggability": {
+                "best_score": best,
+                "tier": tier,
+                "total_pockets": len(enriched),
+                "high_pockets": len(high),
+            },
+            "top_pockets": enriched[:5],
+            "message": "Computed on-demand by fpocket on the AlphaFold structure.",
+            "links": {
+                "alphafold": f"https://alphafold.ebi.ac.uk/entry/{uid}",
+                "uniprot": f"https://www.uniprot.org/uniprot/{uid}",
+                "literature": f"https://resistai.bio/dashboard/search?q={uid}",
+            }
+        }
+    except subprocess.TimeoutExpired:
+        raise HTTPException(status_code=504, detail="fpocket analysis timed out for this structure.")
+    finally:
+        shutil.rmtree(workdir, ignore_errors=True)
 
 
 class PredictQuery(BaseModel):
