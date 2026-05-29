@@ -1,23 +1,33 @@
-# fpocket'in resmi, onceden derlenmis imaji - derleme yok
-FROM fpocket/fpocket
+# micromamba (conda) tabanli - fpocket'i conda-forge'dan onceden derlenmis kurar.
+# Derleme yok, GCC/netcdf/flag derdi yok.
+FROM mambaorg/micromamba:1.5.8
 
-# Python ve pip kur (bu image Debian/Ubuntu tabanli)
+USER root
+
+# Sistem CA sertifikalari (https istekleri icin)
 RUN apt-get update -qq && \
-    apt-get install -y --no-install-recommends \
-        python3 \
-        python3-pip \
-        python3-venv \
-        ca-certificates && \
-    rm -rf /var/lib/apt/lists/*
+    apt-get install -y --no-install-recommends ca-certificates && \
+    rm -rf /var/lib/apt/lists/* || true
+
+# fpocket + python'i conda-forge'dan kur
+RUN micromamba install -y -n base -c conda-forge \
+        python=3.11 \
+        fpocket \
+        pip && \
+    micromamba clean --all --yes
+
+# micromamba ortamini aktif et
+ARG MAMBA_DOCKERFILE_ACTIVATE=1
+ENV PATH=/opt/conda/bin:$PATH
 
 WORKDIR /app
 
 COPY requirements.txt .
-RUN pip3 install --no-cache-dir --break-system-packages -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
 ENV PORT=8000
 EXPOSE 8000
 
-CMD python3 -m uvicorn main:app --host 0.0.0.0 --port $PORT
+CMD uvicorn main:app --host 0.0.0.0 --port $PORT
