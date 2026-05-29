@@ -1,6 +1,7 @@
 FROM python:3.11-slim
 
-# fpocket'i kaynaktan derlemek icin gerekli araclar + runtime kutuphaneleri
+# fpocket'i kaynaktan derle. Modern GCC eski C kodundaki pointer tip
+# uyumsuzluklarini hata sayiyor; -Wno-* flagleriyle uyariya dusurup derliyoruz.
 RUN apt-get update -qq && \
     apt-get install -y --no-install-recommends \
         git \
@@ -9,7 +10,7 @@ RUN apt-get update -qq && \
         ca-certificates && \
     git clone https://github.com/Discngine/fpocket.git /tmp/fpocket && \
     cd /tmp/fpocket && \
-    make && \
+    make CFLAGS="-O2 -std=gnu89 -Wno-incompatible-pointer-types -Wno-implicit-function-declaration -Wno-int-conversion -fcommon" && \
     make install && \
     cd / && \
     rm -rf /tmp/fpocket && \
