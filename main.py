@@ -227,6 +227,10 @@ class EmailReport(BaseModel):
 
 @app.post("/send-report")
 def send_report(data: EmailReport):
+    # Guvenlik agi: gecersiz/bos email'i reddet - yanlis adrese rapor gitmesin
+    email = (data.to_email or "").strip()
+    if "@" not in email or "." not in email.split("@")[-1] or len(email) < 5:
+        raise HTTPException(status_code=400, detail="Valid recipient email required")
     try:
         import resend
         resend.api_key = os.getenv("RESEND_API_KEY")
